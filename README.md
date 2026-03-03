@@ -1,6 +1,6 @@
 # Java HTTP Proxy + Backend Servers
 
-This assignment is implemented as a small Java 25 project using plain `ServerSocket`/`Socket` APIs without frameworks.
+This assignment is implemented as a small Java 21 project using plain `ServerSocket`/`Socket` APIs without frameworks.
 
 ## What is implemented
 
