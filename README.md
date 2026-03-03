@@ -1,6 +1,6 @@
 # Java HTTP Proxy + Backend Servers
 
-This assignment is implemented as a small Java 17 project using plain `ServerSocket`/`Socket` APIs without frameworks.
+This assignment is implemented as a small Java 25 project using plain `ServerSocket`/`Socket` APIs without frameworks.
 
 ## What is implemented
 
@@ -105,7 +105,7 @@ I used AI as an accelerator for design and boilerplate code:
 3. Cross-checked assignment requirements (ordering, backpressure, keepalive).
 
 Where AI was wrong / required manual fixes:
-- It suggested APIs tied to newer Java versions (virtual/platform thread builders), so I replaced them with Java 17-compatible code.
+- It suggested APIs tied to newer Java versions (virtual/platform thread builders), so I replaced them with compatibility-safe code for this project setup.
 - Keepalive flow needed manual adjustment so it would not break the shared request/response stream.
 - Processing threads and queues required manual validation to satisfy “no rejection under load” and “preserve ordering”.
 
