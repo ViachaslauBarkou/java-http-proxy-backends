@@ -1,112 +1,112 @@
 # Java HTTP Proxy + Backend Servers
 
-Тестовое задание реализовано как небольшой Java 17 проект на чистых `ServerSocket`/`Socket` без фреймворков.
+This assignment is implemented as a small Java 17 project using plain `ServerSocket`/`Socket` APIs without frameworks.
 
-## Что реализовано
+## What is implemented
 
 ### 1) Proxy Server
-- Принимает клиентские соединения по HTTP/1.1 (порт `8080`).
-- Поддерживает HTTP pipelining:
-  - отдельный поток читает запросы клиента и кладёт их в очередь,
-  - отдельный поток пишет ответы,
-  - ответы отправляются строго в том же порядке, в котором были прочитаны запросы.
-- Не отбрасывает запросы при нагрузке:
-  - используются ограниченные `ArrayBlockingQueue`,
-  - при заполнении очереди поток чтения блокируется (backpressure), а не отдаёт ошибку/дропает запрос.
-- Балансирует запросы round-robin между 5 backend-ами:
+- Accepts client HTTP/1.1 connections (port `8080`).
+- Supports HTTP pipelining:
+  - a dedicated thread reads client requests and enqueues them,
+  - a separate thread writes responses,
+  - responses are sent strictly in the same order in which requests were read.
+- Does not drop requests under load:
+  - bounded `ArrayBlockingQueue` instances are used,
+  - when a queue is full, the reader thread blocks (backpressure) instead of returning an error or dropping a request.
+- Balances requests in round-robin mode across 5 backends:
   - 1 framed storage backend,
-  - 4 обычных HTTP backend-а.
+  - 4 regular HTTP backends.
 
 ### 2) Backend Servers
-Реализовано 2 типа backend серверов.
+Two backend server types are implemented.
 
 #### Framed Storage Backend (`9000`)
-- Использует length-prefixed framing (4 байта длины + payload).
-- В payload передаётся raw HTTP request, обратно возвращается raw HTTP response.
-- На каждое TCP-соединение:
-  - входящие кадры сначала ставятся в очередь,
-  - обработка идёт отдельным worker-потоком,
-  - I/O thread не выполняет бизнес-логику.
+- Uses length-prefixed framing (4-byte length + payload).
+- Raw HTTP request is sent in the payload; raw HTTP response is returned back.
+- For each TCP connection:
+  - incoming frames are first enqueued,
+  - processing is performed by a separate worker thread,
+  - the I/O thread does not execute business logic.
 
 #### Plain HTTP Backend (`9001..9004`)
-- Получает обычные HTTP/1.1 запросы.
-- На каждое TCP-соединение:
-  - reader поток только парсит запросы и складывает в очередь,
-  - worker поток обрабатывает и формирует ответ,
-  - I/O чтение не блокируется обработкой бизнес-логики.
+- Receives regular HTTP/1.1 requests.
+- For each TCP connection:
+  - the reader thread only parses requests and enqueues them,
+  - the worker thread processes requests and builds responses,
+  - I/O reading is not blocked by business logic processing.
 
 ### 3) Keepalive / Health
-- Прокси держит persistent connection к каждому backend.
-- Каждые 2 секунды в очередь backend-клиента добавляется health check:
-  - `GET /__health` для plain backend,
-  - такой же HTTP запрос, но внутри frame для storage backend.
-- При ошибках чтения/записи соединение закрывается и автоматически переподключается.
+- The proxy keeps a persistent connection to each backend.
+- Every 2 seconds, a health check is added to the backend client queue:
+  - `GET /__health` for plain backends,
+  - the same HTTP request wrapped in a frame for the storage backend.
+- On read/write errors, the connection is closed and automatically re-established.
 
 ---
 
-## Архитектура (коротко)
+## Architecture (short)
 
-- `Main` поднимает все backend серверы и затем proxy.
+- `Main` starts all backend servers and then the proxy.
 - `ProxyServer`:
-  - на клиентском соединении — read loop + ordered write loop,
-  - внутри — пул `BackendClient` (по одному на backend endpoint),
-  - каждый `BackendClient` последовательно отправляет запросы в свой backend и получает ответы, сохраняя соответствие request->response.
-- `HttpModels` — минимальный HTTP parser/serializer (request/response, headers, content-length).
-- `FramedCodec` — framing для storage backend.
+  - on each client connection: read loop + ordered write loop,
+  - internally: a pool of `BackendClient` instances (one per backend endpoint),
+  - each `BackendClient` sends requests to its backend sequentially and receives matching responses while preserving request->response mapping.
+- `HttpModels` is a minimal HTTP parser/serializer (request/response, headers, content-length).
+- `FramedCodec` provides framing for the storage backend.
 
 ---
 
-## Ограничения и trade-offs (осознанно)
+## Limitations and trade-offs (intentional)
 
-Из-за ограничения по времени (~6–8 часов):
-- Поддерживается `Content-Length`, но не реализован chunked transfer encoding.
-- Минимальная обработка ошибок HTTP парсинга (основные кейсы покрыты).
-- Нет TLS/HTTPS и нет полноценного graceful shutdown.
-- Простая стратегия load balancing (round-robin), без latency-aware эвристик.
-- In-memory без персистентного хранилища.
-
----
-
-## Что улучшил бы дальше
-
-1. Добавил бы NIO/Netty вместо per-connection thread модели для лучшей масштабируемости.
-2. Поддержал бы chunked encoding и стриминг тел.
-3. Добавил бы полноценные retries с idempotency-aware политиками.
-4. Ввёл бы метрики (Prometheus), структурированный логгинг, tracing.
-5. Добавил бы интеграционные и нагрузочные тесты (Gatling/JMH + chaos scenarios).
-6. Сделал бы конфигурацию через env/YAML и health/readiness endpoints.
+Due to time constraints (~6–8 hours):
+- `Content-Length` is supported, but chunked transfer encoding is not implemented.
+- HTTP parsing error handling is minimal (main scenarios are covered).
+- No TLS/HTTPS and no full graceful shutdown implementation.
+- Simple load balancing strategy (round-robin), without latency-aware heuristics.
+- In-memory only, without persistent storage.
 
 ---
 
-## Как запускать
+## What I would improve next
+
+1. Use NIO/Netty instead of the per-connection thread model for better scalability.
+2. Add chunked encoding support and body streaming.
+3. Add proper retries with idempotency-aware policies.
+4. Introduce metrics (Prometheus), structured logging, and tracing.
+5. Add integration and load tests (Gatling/JMH + chaos scenarios).
+6. Move configuration to env/YAML and add health/readiness endpoints.
+
+---
+
+## How to run
 
 ```bash
 mvn -q compile
 mvn -q exec:java -Dexec.mainClass=com.assignment.proxy.Main
 ```
 
-> Если в вашем Maven не подключен `exec-maven-plugin`, можно собрать jar и запустить `java -cp ...`.
+> If your Maven setup does not include `exec-maven-plugin`, you can build a jar and run it via `java -cp ...`.
 
-Пример проверки:
+Example check:
 
 ```bash
 printf 'GET /a HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\nGET /b HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n' | nc 127.0.0.1 8080
 ```
 
-Вы увидите 2 ответа в том же порядке (`/a`, затем `/b`) — это проверка pipelining ordering.
+You should see 2 responses in the same order (`/a`, then `/b`) — this verifies pipelining ordering.
 
 ---
 
 ## How AI was used
 
-Я использовал AI как ускоритель проектирования и чернового кода:
-1. Сформулировал архитектуру: как разнести I/O, очередь и worker на connection-level.
-2. Сгенерировал стартовые шаблоны классов (proxy/backends/codecs).
-3. Проверил логические требования задания (ordering, backpressure, keepalive).
+I used AI as an accelerator for design and boilerplate code:
+1. Defined the architecture: how to separate I/O, queueing, and worker processing at connection level.
+2. Generated starter class templates (proxy/backends/codecs).
+3. Cross-checked assignment requirements (ordering, backpressure, keepalive).
 
-Где AI ошибался/требовал правок вручную:
-- Предлагал API, завязанные на более новую Java (virtual/platform thread builders), пришлось заменить на совместимый код Java 17.
-- Нужна была ручная корректировка сценария keepalive, чтобы не ломать общий поток request/response.
-- Ручная валидация потоков обработки и очередей, чтобы соответствовать требованиям “no rejection under load” и “preserve ordering”.
+Where AI was wrong / required manual fixes:
+- It suggested APIs tied to newer Java versions (virtual/platform thread builders), so I replaced them with Java 17-compatible code.
+- Keepalive flow needed manual adjustment so it would not break the shared request/response stream.
+- Processing threads and queues required manual validation to satisfy “no rejection under load” and “preserve ordering”.
 
-Итог: AI дал скорость на boilerplate, но критичные решения по протоколу, очередям и отказоустойчивости были доработаны вручную.
+Summary: AI sped up boilerplate, but critical protocol, queueing, and resilience decisions were finalized manually.
