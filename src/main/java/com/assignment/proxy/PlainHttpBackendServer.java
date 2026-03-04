@@ -10,16 +10,28 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.concurrent.*;
 
+/**
+ * Simple keep-alive HTTP backend used for proxy load balancing.
+ */
 public class PlainHttpBackendServer {
     private final int port;
     private final String name;
     private final ExecutorService connPool = Executors.newCachedThreadPool();
 
+    /**
+     * Creates backend instance.
+     *
+     * @param port listen port.
+     * @param name backend name used in response payloads.
+     */
     public PlainHttpBackendServer(int port, String name) {
         this.port = port;
         this.name = name;
     }
 
+    /**
+     * Starts accepting backend connections asynchronously.
+     */
     public void start() {
         connPool.submit(() -> {
             try (ServerSocket server = new ServerSocket(port)) {
@@ -34,6 +46,9 @@ public class PlainHttpBackendServer {
         });
     }
 
+    /**
+     * Handles one client socket with queued request processing.
+     */
     private void handleConnection(Socket socket) {
         BlockingQueue<HttpRequest> queue = new ArrayBlockingQueue<>(256);
         ExecutorService worker = Executors.newSingleThreadExecutor();
@@ -72,6 +87,9 @@ public class PlainHttpBackendServer {
         }
     }
 
+    /**
+     * Builds backend response for one request.
+     */
     private HttpResponse process(HttpRequest req) {
         if (req.target().equals("/__health")) {
             return response(200, "OK", "healthy:" + name);
@@ -80,6 +98,9 @@ public class PlainHttpBackendServer {
         return response(200, "OK", body);
     }
 
+    /**
+     * Creates a JSON response with keep-alive headers.
+     */
     private HttpResponse response(int code, String reason, String body) {
         byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
         LinkedHashMap<String, String> headers = new LinkedHashMap<>();

@@ -2,7 +2,16 @@ package com.assignment.proxy;
 
 import java.util.List;
 
+/**
+ * Application entry point that boots local backend servers and starts the proxy.
+ */
 public class Main {
+    /**
+     * Starts all demo services and blocks the main thread forever.
+     *
+     * @param args command-line arguments (unused).
+     * @throws Exception if a startup error occurs.
+     */
     public static void main(String[] args) throws Exception {
         int proxyPort = 8080;
         int storagePort = 9000;

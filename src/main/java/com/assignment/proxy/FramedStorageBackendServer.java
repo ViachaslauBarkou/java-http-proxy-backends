@@ -10,14 +10,25 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.concurrent.*;
 
+/**
+ * Storage-like backend that communicates over a custom framed protocol.
+ */
 public class FramedStorageBackendServer {
     private final int port;
     private final ExecutorService pool = Executors.newCachedThreadPool();
 
+    /**
+     * Creates framed backend.
+     *
+     * @param port listen port.
+     */
     public FramedStorageBackendServer(int port) {
         this.port = port;
     }
 
+    /**
+     * Starts accepting framed backend connections asynchronously.
+     */
     public void start() {
         pool.submit(() -> {
             try (ServerSocket server = new ServerSocket(port)) {
@@ -32,6 +43,9 @@ public class FramedStorageBackendServer {
         });
     }
 
+    /**
+     * Handles one framed transport connection.
+     */
     private void handleConnection(Socket socket) {
         BlockingQueue<byte[]> queue = new ArrayBlockingQueue<>(256);
         ExecutorService worker = Executors.newSingleThreadExecutor();
@@ -70,6 +84,9 @@ public class FramedStorageBackendServer {
         }
     }
 
+    /**
+     * Processes one request and returns a JSON response.
+     */
     private HttpResponse process(HttpRequest req) {
         if (req.target().equals("/__health")) {
             return response(200, "OK", "storage-healthy");
@@ -78,6 +95,9 @@ public class FramedStorageBackendServer {
         return response(200, "OK", body);
     }
 
+    /**
+     * Creates a JSON response with keep-alive headers.
+     */
     private HttpResponse response(int code, String reason, String body) {
         byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
         LinkedHashMap<String, String> headers = new LinkedHashMap<>();

@@ -4,10 +4,30 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
+/**
+ * HTTP parsing and serialization models used by the proxy and test backends.
+ */
 public final class HttpModels {
+    /**
+     * Utility holder class.
+     */
     private HttpModels() {}
 
+    /**
+     * Minimal HTTP request representation.
+     *
+     * @param method HTTP method.
+     * @param target request path or absolute target.
+     * @param version HTTP protocol version.
+     * @param headers request headers.
+     * @param body request body bytes.
+     */
     public record HttpRequest(String method, String target, String version, Map<String, String> headers, byte[] body) {
+        /**
+         * Serializes request line, headers and body to bytes.
+         *
+         * @return encoded HTTP request bytes.
+         */
         public byte[] toBytes() {
             StringBuilder sb = new StringBuilder();
             sb.append(method).append(" ").append(target).append(" ").append(version).append("\r\n");
@@ -22,7 +42,21 @@ public final class HttpModels {
         }
     }
 
+    /**
+     * Minimal HTTP response representation.
+     *
+     * @param version HTTP protocol version.
+     * @param statusCode status code.
+     * @param reason status reason phrase.
+     * @param headers response headers.
+     * @param body response body bytes.
+     */
     public record HttpResponse(String version, int statusCode, String reason, Map<String, String> headers, byte[] body) {
+        /**
+         * Serializes status line, headers and body to bytes.
+         *
+         * @return encoded HTTP response bytes.
+         */
         public byte[] toBytes() {
             StringBuilder sb = new StringBuilder();
             sb.append(version).append(" ").append(statusCode).append(" ").append(reason).append("\r\n");
@@ -37,6 +71,13 @@ public final class HttpModels {
         }
     }
 
+    /**
+     * Reads one HTTP request from a stream.
+     *
+     * @param in source stream.
+     * @return parsed request or {@code null} when stream is closed at message boundary.
+     * @throws IOException when data is malformed or stream ends unexpectedly.
+     */
     public static HttpRequest readRequest(InputStream in) throws IOException {
         String start = readLine(in);
         if (start == null || start.isEmpty()) {
@@ -52,6 +93,13 @@ public final class HttpModels {
         return new HttpRequest(parts[0], parts[1], parts[2], headers, body);
     }
 
+    /**
+     * Reads one HTTP response from a stream.
+     *
+     * @param in source stream.
+     * @return parsed response or {@code null} when stream is closed at message boundary.
+     * @throws IOException when data is malformed or stream ends unexpectedly.
+     */
     public static HttpResponse readResponse(InputStream in) throws IOException {
         String status = readLine(in);
         if (status == null || status.isEmpty()) {
@@ -70,6 +118,13 @@ public final class HttpModels {
         return new HttpResponse(version, code, reason, headers, body);
     }
 
+    /**
+     * Reads one CRLF-terminated ASCII line without the trailing CRLF.
+     *
+     * @param in source stream.
+     * @return decoded line or {@code null} when stream is closed before any bytes are read.
+     * @throws IOException when stream ends in the middle of a line.
+     */
     public static String readLine(InputStream in) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         int prev = -1;
@@ -90,6 +145,9 @@ public final class HttpModels {
         }
     }
 
+    /**
+     * Reads headers up to the empty separator line.
+     */
     private static LinkedHashMap<String, String> readHeaders(InputStream in) throws IOException {
         LinkedHashMap<String, String> headers = new LinkedHashMap<>();
         String line;
@@ -101,6 +159,9 @@ public final class HttpModels {
         return headers;
     }
 
+    /**
+     * Parses {@code Content-Length} value, defaulting to zero.
+     */
     private static int parseContentLength(Map<String, String> headers) {
         String v = headers.entrySet().stream()
                 .filter(e -> e.getKey().equalsIgnoreCase("Content-Length"))
@@ -110,14 +171,12 @@ public final class HttpModels {
         return Integer.parseInt(v);
     }
 
+    /**
+     * Reads exact number of bytes.
+     */
     private static byte[] readN(InputStream in, int n) throws IOException {
-        byte[] data = new byte[n];
-        int off = 0;
-        while (off < n) {
-            int r = in.read(data, off, n - off);
-            if (r == -1) throw new EOFException("Unexpected EOF body");
-            off += r;
-        }
-        return data;
+        byte[] b = in.readNBytes(n);
+        if (b.length != n) throw new EOFException("Expected " + n + " bytes, got " + b.length);
+        return b;
     }
 }
