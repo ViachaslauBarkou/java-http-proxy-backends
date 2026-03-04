@@ -2,6 +2,12 @@
 
 This assignment is implemented as a small Java 21 project using plain `ServerSocket`/`Socket` APIs without frameworks.
 
+## Requirements
+
+- Java 21+
+- Maven 3.9+
+- `nc` (netcat) for manual smoke checks (optional)
+
 ## What is implemented
 
 ### 1) Proxy Server
@@ -100,6 +106,44 @@ For macOS, run this variant:
 ```
 
 You should see 2 responses in the same order (`/a`, then `/b`) — this verifies pipelining ordering.
+
+---
+
+## How to run tests
+
+Run all unit tests:
+
+```bash
+mvn -q test
+```
+
+Run one specific test class:
+
+```bash
+mvn -q -Dtest=ProxyServerTest test
+```
+
+---
+
+## Project structure
+
+```text
+src/main/java/com/assignment/proxy
+src/test/java/com/assignment/proxy
+pom.xml
+```
+
+---
+
+## License
+
+This project is distributed under the MIT License. See [LICENSE](LICENSE) for details.
+
+---
+
+## Contributing
+
+This repository was prepared as an assignment, but small improvements and fixes are welcome via pull requests.
 
 ---
 
