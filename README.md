@@ -93,6 +93,12 @@ Example check:
 printf 'GET /a HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\nGET /b HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n' | nc 127.0.0.1 8080
 ```
 
+For macOS, run this variant:
+
+```bash
+{ printf 'GET /a HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\nGET /b HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n'; sleep 1; } | nc 127.0.0.1 8080
+```
+
 You should see 2 responses in the same order (`/a`, then `/b`) — this verifies pipelining ordering.
 
 ---
