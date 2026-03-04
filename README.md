@@ -99,14 +99,4 @@ You should see 2 responses in the same order (`/a`, then `/b`) — this verifies
 
 ## How AI was used
 
-I used AI as an accelerator for design and boilerplate code:
-1. Defined the architecture: how to separate I/O, queueing, and worker processing at connection level.
-2. Generated starter class templates (proxy/backends/codecs).
-3. Cross-checked assignment requirements (ordering, backpressure, keepalive).
-
-Where AI was wrong / required manual fixes:
-- It suggested APIs tied to newer Java versions (virtual/platform thread builders), so I replaced them with compatibility-safe code for this project setup.
-- Keepalive flow needed manual adjustment so it would not break the shared request/response stream.
-- Processing threads and queues required manual validation to satisfy “no rejection under load” and “preserve ordering”.
-
-Summary: AI sped up boilerplate, but critical protocol, queueing, and resilience decisions were finalized manually.
+Most of this project was implemented with AI assistance, and I reviewed and corrected the generated code where needed.
