@@ -56,6 +56,10 @@ Two backend server types are implemented.
 
 ## Architecture (short)
 
+```text
+Client -> Proxy:8080 -> [storage:9000, api-1..4:9001..9004]
+```
+
 - `Main` starts all backend servers and then the proxy.
 - `ProxyServer`:
   - on each client connection: read loop + ordered write loop,
