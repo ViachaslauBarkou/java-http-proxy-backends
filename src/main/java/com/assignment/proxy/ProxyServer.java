@@ -95,7 +95,7 @@ public class ProxyServer {
             while (true) {
                 HttpRequest req = HttpModels.readRequest(in);
                 if (req == null) break;
-                BackendClient backend = chooseBackend();
+                BackendClient backend = chooseBackend(req);
                 CompletableFuture<HttpResponse> future = backend.submit(normalize(req));
                 responses.put(future);
             }
@@ -109,6 +109,20 @@ public class ProxyServer {
     private BackendClient chooseBackend() {
         int i = Math.floorMod(rr.getAndIncrement(), backendClients.size());
         return backendClients.get(i);
+    }
+
+    /**
+     * Chooses backend by route, with round-robin fallback.
+     */
+    private BackendClient chooseBackend(HttpRequest req) {
+        if (req.target().startsWith("/kv/")) {
+            for (BackendClient backendClient : backendClients) {
+                if (backendClient.target.name().equals("storage")) {
+                    return backendClient;
+                }
+            }
+        }
+        return chooseBackend();
     }
 
     /**

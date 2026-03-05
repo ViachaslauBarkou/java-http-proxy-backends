@@ -19,9 +19,8 @@ This assignment is implemented as a small Java 21 project using plain `ServerSoc
 - Does not drop requests under load:
   - bounded `ArrayBlockingQueue` instances are used,
   - when a queue is full, the reader thread blocks (backpressure) instead of returning an error or dropping a request.
-- Balances requests in round-robin mode across 5 backends:
-  - 1 framed storage backend,
-  - 4 regular HTTP backends.
+- Routes `/kv/*` requests to the framed storage backend.
+- Balances all other requests in round-robin mode across 4 regular HTTP backends.
 
 ### 2) Backend Servers
 Two backend server types are implemented.
@@ -29,6 +28,11 @@ Two backend server types are implemented.
 #### Framed Storage Backend (`9000`)
 - Uses length-prefixed framing (4-byte length + payload).
 - Raw HTTP request is sent in the payload; raw HTTP response is returned back.
+- Implements real in-memory key-value storage at `/kv/{key}`:
+  - `PUT /kv/{key}` writes request body as a value,
+  - `GET /kv/{key}` returns stored value,
+  - `DELETE /kv/{key}` removes key,
+  - `GET` for a missing key returns `404 Not Found`.
 - For each TCP connection:
   - incoming frames are first enqueued,
   - processing is performed by a separate worker thread,
@@ -106,6 +110,14 @@ For macOS, run this variant:
 ```
 
 You should see 2 responses in the same order (`/a`, then `/b`) — this verifies pipelining ordering.
+
+KV storage check:
+
+```bash
+printf 'PUT /kv/user1 HTTP/1.1\r\nHost: localhost\r\nContent-Length: 5\r\n\r\nhello' | nc 127.0.0.1 8080
+printf 'GET /kv/user1 HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n' | nc 127.0.0.1 8080
+printf 'DELETE /kv/user1 HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n' | nc 127.0.0.1 8080
+```
 
 ---
 

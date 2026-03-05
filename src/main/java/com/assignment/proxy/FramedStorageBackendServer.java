@@ -7,7 +7,9 @@ import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.LinkedHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.*;
 
 /**
@@ -15,6 +17,7 @@ import java.util.concurrent.*;
  */
 public class FramedStorageBackendServer {
     private final int port;
+    private final Map<String, byte[]> storage = new ConcurrentHashMap<>();
     private final ExecutorService pool = Executors.newCachedThreadPool();
 
     /**
@@ -91,19 +94,59 @@ public class FramedStorageBackendServer {
         if (req.target().equals("/__health")) {
             return response(200, "OK", "storage-healthy");
         }
-        String body = "{\"backend\":\"storage\",\"stored\":true,\"path\":\"" + req.target() + "\"}";
-        return response(200, "OK", body);
+
+        if (!req.target().startsWith("/kv/")) {
+            return response(404, "Not Found", "not found", "text/plain");
+        }
+
+        String key = req.target().substring("/kv/".length());
+        if (key.isEmpty()) {
+            return response(400, "Bad Request", "key is required", "text/plain");
+        }
+
+        return switch (req.method()) {
+            case "PUT" -> {
+                storage.put(key, req.body());
+                yield response(200, "OK", "", "text/plain");
+            }
+            case "GET" -> {
+                byte[] value = storage.get(key);
+                if (value == null) {
+                    yield response(404, "Not Found", "not found", "text/plain");
+                }
+                yield binaryResponse(200, "OK", value, "text/plain");
+            }
+            case "DELETE" -> {
+                storage.remove(key);
+                yield response(200, "OK", "", "text/plain");
+            }
+            default -> response(405, "Method Not Allowed", "method not allowed", "text/plain");
+        };
     }
 
     /**
      * Creates a JSON response with keep-alive headers.
      */
     private HttpResponse response(int code, String reason, String body) {
+        return response(code, reason, body, "application/json");
+    }
+
+    /**
+     * Creates a text or JSON response with keep-alive headers.
+     */
+    private HttpResponse response(int code, String reason, String body, String contentType) {
         byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+        return binaryResponse(code, reason, bytes, contentType);
+    }
+
+    /**
+     * Creates a binary response with keep-alive headers.
+     */
+    private HttpResponse binaryResponse(int code, String reason, byte[] body, String contentType) {
         LinkedHashMap<String, String> headers = new LinkedHashMap<>();
-        headers.put("Content-Type", "application/json");
-        headers.put("Content-Length", String.valueOf(bytes.length));
+        headers.put("Content-Type", contentType);
+        headers.put("Content-Length", String.valueOf(body.length));
         headers.put("Connection", "keep-alive");
-        return new HttpResponse("HTTP/1.1", code, reason, headers, bytes);
+        return new HttpResponse("HTTP/1.1", code, reason, headers, body);
     }
 }
