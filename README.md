@@ -101,13 +101,13 @@ mvn -q exec:java -Dexec.mainClass=com.assignment.proxy.Main
 
 > If your Maven setup does not include `exec-maven-plugin`, you can build a jar and run it via `java -cp ...`.
 
-Example check:
+Example check (Linux):
 
 ```bash
 printf 'GET /a HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\nGET /b HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n' | nc 127.0.0.1 8080
 ```
 
-For macOS, run this variant:
+Example check (macOS/BSD `nc`):
 
 ```bash
 { printf 'GET /a HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\nGET /b HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n'; sleep 1; } | nc 127.0.0.1 8080
@@ -117,10 +117,20 @@ You should see 2 responses in the same order (`/a`, then `/b`) — this verifies
 
 KV storage check:
 
+Linux:
+
 ```bash
 printf 'PUT /kv/user1 HTTP/1.1\r\nHost: localhost\r\nContent-Length: 5\r\n\r\nhello' | nc 127.0.0.1 8080
 printf 'GET /kv/user1 HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n' | nc 127.0.0.1 8080
 printf 'DELETE /kv/user1 HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n' | nc 127.0.0.1 8080
+```
+
+macOS/BSD `nc` variant:
+
+```bash
+{ printf 'PUT /kv/user1 HTTP/1.1\r\nHost: localhost\r\nContent-Length: 5\r\n\r\nhello'; sleep 1; } | nc 127.0.0.1 8080
+{ printf 'GET /kv/user1 HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n'; sleep 1; } | nc 127.0.0.1 8080
+{ printf 'DELETE /kv/user1 HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n'; sleep 1; } | nc 127.0.0.1 8080
 ```
 
 ---
