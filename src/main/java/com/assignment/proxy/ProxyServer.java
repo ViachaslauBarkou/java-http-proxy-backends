@@ -233,7 +233,11 @@ public class ProxyServer {
             if (target.type() == BackendType.PLAIN) {
                 out.write(req.toBytes());
                 out.flush();
-                return HttpModels.readResponse(in);
+                HttpResponse response = HttpModels.readResponse(in);
+                if (response == null) {
+                    throw new EOFException("No response from plain backend");
+                }
+                return response;
             }
             FramedCodec.writeFrame(out, req.toBytes());
             byte[] frame = FramedCodec.readFrame(in);
