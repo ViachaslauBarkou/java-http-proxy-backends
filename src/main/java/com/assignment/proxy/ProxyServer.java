@@ -207,9 +207,10 @@ public class ProxyServer {
          */
         private void runLoop() {
             while (true) {
+                BackendJob job = null;
                 try {
                     ensureConnected();
-                    BackendJob job = queue.take();
+                    job = queue.take();
                     HttpResponse response = execute(job.req);
                     if (!job.health) {
                         job.future.complete(response);
@@ -218,6 +219,7 @@ public class ProxyServer {
                     }
                 } catch (Exception e) {
                     close();
+                    failCurrent(job, e);
                     failPending(e);
                     sleepQuietly(200);
                 }
@@ -271,6 +273,15 @@ public class ProxyServer {
                 if (!job.health) {
                     job.future.complete(errorResponse(e, target.name()));
                 }
+            }
+        }
+
+        /**
+         * Completes currently running user request if backend fails mid-flight.
+         */
+        private void failCurrent(BackendJob job, Exception e) {
+            if (job != null && !job.health) {
+                job.future.complete(errorResponse(e, target.name()));
             }
         }
 
