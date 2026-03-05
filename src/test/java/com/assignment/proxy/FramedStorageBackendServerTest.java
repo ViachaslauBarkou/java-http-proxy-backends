@@ -19,17 +19,17 @@ class FramedStorageBackendServerTest {
         process.setAccessible(true);
 
         HttpResponse put = (HttpResponse) process.invoke(server, request("PUT", "/kv/user1", "hello"));
-        assertEquals(200, put.code());
+        assertEquals(200, put.statusCode());
 
         HttpResponse get = (HttpResponse) process.invoke(server, request("GET", "/kv/user1", ""));
-        assertEquals(200, get.code());
+        assertEquals(200, get.statusCode());
         assertEquals("hello", new String(get.body(), StandardCharsets.UTF_8));
 
         HttpResponse delete = (HttpResponse) process.invoke(server, request("DELETE", "/kv/user1", ""));
-        assertEquals(200, delete.code());
+        assertEquals(200, delete.statusCode());
 
         HttpResponse missing = (HttpResponse) process.invoke(server, request("GET", "/kv/user1", ""));
-        assertEquals(404, missing.code());
+        assertEquals(404, missing.statusCode());
     }
 
     private static HttpRequest request(String method, String target, String body) {
